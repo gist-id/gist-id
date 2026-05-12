@@ -4,7 +4,7 @@ This document specifies the on-disk markdown layout that every gist.id profile
 repository follows. The builder reads these files; the renderer displays them.
 The convention is the contract — change it carefully.
 
-This document describes schema version 1.
+This document describes schema version 2.
 
 ## What gist.id is
 
@@ -47,9 +47,8 @@ term "resume" is used here for consistency with the JSON Resume standard.
 
 ## Markdown dialect
 
-CommonMark plus the following extensions: tables, strikethrough, task lists,
-footnotes. Raw inline HTML is **not** supported and will be stripped — express
-formatting through markdown features only.
+CommonMark plus strikethrough. Raw inline HTML is **not** supported and will
+be stripped — express formatting through markdown features only.
 
 Visual styling (CSS classes, inline styles, fonts, colours) is the client's
 responsibility. Profiles render consistently across all gist.id clients;
@@ -65,11 +64,10 @@ parser treats it as a leading list before the prose.
 Example:
 
 ```markdown
-## Staff Engineer — Hexworks
+### Staff Engineer
 - Start: 2024-03
 - End: present
 - Location: Berlin, DE
-- URL: https://hexworks.example
 
 Joined to lead the platform reliability team. Designed the observability
 rollout that took mean detection time from 28 minutes to under 4.
@@ -145,49 +143,72 @@ account whose public activity is queried for verification.
 
 ## resume/work.md
 
-One position per `##` heading. Title and company separated by an em-dash or
-hyphen.
+Work history is structured as a two-level hierarchy: companies at `##`,
+roles within each company at `###`. Sequential roles at the same company
+nest under one company heading. If you left a company and returned later,
+those two stints appear as two separate `## Company` blocks — they are
+different employment relationships even though the name is the same.
 
 ```markdown
 # Work
 
-## Staff Engineer — Hexworks
+## Hexworks
+- URL: https://hexworks.example
+
+### Staff Engineer
 - Start: 2024-03
 - End: present
 - Location: Berlin, DE
-- URL: https://hexworks.example
 
-Leads the platform reliability team. Designed the observability rollout.
+Leads the platform reliability team. Designed the observability rollout
+that took mean detection time from 28 minutes to under 4.
 
 - Cut critical incident MTTR by 6x across 40 services
 - Authored the internal Rust style guide adopted org-wide
 
-## Senior SRE — Linwave Payments
-- Start: 2020-08
+### Senior Engineer
+- Start: 2022-01
 - End: 2024-02
+- Location: Berlin, DE
+
+Joined to scale the ingestion pipeline.
+
+## Linwave Payments
+
+### Senior SRE
+- Start: 2020-08
+- End: 2021-12
 - Location: London, UK
 
 Owned the production resilience programme for the card-processing platform.
 Built the chaos engineering practice from scratch.
-
-## Backend Engineer — Forecastable
-- Start: 2017-01
-- End: 2020-07
-- Location: Stockholm, SE
-
-Early engineer on a weather-data API used by agritech customers.
 ```
 
 The H1 is optional and ignored; it exists so the file reads naturally on
-GitHub. Each `##` is a position. Entries are sorted by start date descending
-in the output regardless of file order.
+GitHub.
 
-Metadata keys: `Start`, `End`, `Location`, `URL`, `Type` (full-time, contract,
-freelance).
+**Company-level metadata keys** (under `##`):
+
+| Key | Notes |
+| --- | --- |
+| `URL` | The company's website |
+
+**Role-level metadata keys** (under `###`):
+
+| Key | Notes |
+| --- | --- |
+| `Start` | Start date (required) |
+| `End` | End date, or `present` for ongoing |
+| `Location` | Where you worked (per-role; offices can differ between roles at the same company) |
+| `Type` | `full-time`, `contract`, `freelance`, etc. (free text) |
+
+Companies appear in the order they are listed in the file (typically newest
+first). Roles within a company appear in the order they are listed (typically
+newest first).
 
 ## resume/education.md
 
-Same pattern as work.
+Each `##` is an institution.
 
 ```markdown
 # Education
@@ -265,13 +286,12 @@ reference codebase in two university distributed systems courses.
 - Granted: 2022-08-09
 - Office: USPTO
 - URL: https://patents.google.com/patent/US12345678
-- Inventors: Ada Renström, Other Person
 
 Optional prose describing the invention's contribution.
 ```
 
 Metadata keys: `Number`, `Status` (filed, pending, granted, lapsed), `Filed`,
-`Granted`, `Office` (USPTO, EPO, WIPO, etc.), `URL`, `Inventors`.
+`Granted`, `Office` (USPTO, EPO, WIPO, etc.), `URL`.
 
 Patent numbers and URLs can be cross-checked against public patent office
 databases — strong evidence by design.
@@ -321,16 +341,6 @@ Recognised metadata keys:
 | --- | --- |
 | `Tags` | Comma-separated list, used for discovery |
 | `Canonical` | Original URL if this post was first published elsewhere |
-
-Example with the full metadata set:
-
-```markdown
-# Post title
-- Tags: rust, distributed-systems
-- Canonical: https://example.com/post
-
-Body...
-```
 
 Posts are part of a profile — supplementary content showing thinking,
 writing style, or technical depth. They are not feed primitives; gist.id has

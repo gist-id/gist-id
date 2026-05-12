@@ -1,0 +1,19 @@
+[package]
+name = "gist-id-schema"
+version = "0.1.0"
+description = "Shared types and wire format for gist.id"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[dependencies]
+serde = { workspace = true }
+serde-big-array = "0.5"
+postcard = { workspace = true }
+pulldown-cmark = { workspace = true }    # <-- add this
