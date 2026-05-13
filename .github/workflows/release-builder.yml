@@ -1,0 +1,58 @@
+name: Release builder binary
+
+on:
+  push:
+    tags:
+      - "builder-v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build (e.g. builder-v0.1.0)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build release binary
+        run: cargo build --release -p gist-id-builder
+
+      - name: Package
+        run: |
+          mkdir -p staging
+          cp target/release/gist-id staging/gist-id
+          cd staging
+          tar -czf gist-id-x86_64-linux.tar.gz gist-id
+          sha256sum gist-id-x86_64-linux.tar.gz > gist-id-x86_64-linux.tar.gz.sha256
+
+      - name: Resolve tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create release and upload binary
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --notes "Builder binary for gist.id." \
+            staging/gist-id-x86_64-linux.tar.gz \
+            staging/gist-id-x86_64-linux.tar.gz.sha256 \
+            || gh release upload "$TAG" \
+              staging/gist-id-x86_64-linux.tar.gz \
+              staging/gist-id-x86_64-linux.tar.gz.sha256 \
+              --clobber
