@@ -1,0 +1,56 @@
+name: gist.id build
+description: Build a gist.id profile artefact into dist/.
+branding:
+  icon: file-text
+  color: blue
+
+inputs:
+  builder-version:
+    description: "Builder release tag to use (e.g. builder-v0.1.0). Default: latest."
+    required: false
+    default: latest
+  out:
+    description: "Output directory."
+    required: false
+    default: dist
+
+runs:
+  using: composite
+  steps:
+    - name: Download builder binary
+      shell: bash
+      run: |
+        set -euo pipefail
+        version="${{ inputs.builder-version }}"
+        repo="gist-id/gist-id"
+
+        if [ "$version" = "latest" ]; then
+          tag=$(curl -fsSL "https://api.github.com/repos/$repo/releases/latest" | \
+                grep -oE '"tag_name":\s*"[^"]+"' | head -1 | cut -d '"' -f 4)
+          if [ -z "$tag" ]; then
+            echo "Could not resolve latest builder release."
+            exit 1
+          fi
+        else
+          tag="$version"
+        fi
+
+        echo "Using builder release: $tag"
+
+        url="https://github.com/$repo/releases/download/$tag/gist-id-x86_64-linux.tar.gz"
+        sha_url="$url.sha256"
+
+        curl -fsSL "$url" -o gist-id.tar.gz
+        curl -fsSL "$sha_url" -o gist-id.tar.gz.sha256
+
+        sha256sum -c gist-id.tar.gz.sha256
+        tar -xzf gist-id.tar.gz
+        chmod +x gist-id
+        echo "$(pwd)" >> "$GITHUB_PATH"
+
+    - name: Run gist-id build
+      shell: bash
+      env:
+        GIST_ID_SIGNING_KEY: ${{ env.GIST_ID_SIGNING_KEY }}
+      run: |
+        gist-id build --out "${{ inputs.out }}"

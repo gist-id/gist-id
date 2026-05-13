@@ -1,6 +1,9 @@
 //! gist-id-builder: builds a profile artefact from a markdown source repo.
 
+mod build;
 mod importer;
+mod keygen;
+mod parse;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -26,6 +29,8 @@ enum Command {
 		#[arg(short, long, default_value_t = 4000)]
 		port: u16,
 	},
+	/// Generate an ed25519 keypair for signing feeds.
+	Keygen,
 }
 
 fn main() -> Result<()> {
@@ -41,13 +46,11 @@ fn main() -> Result<()> {
 	let cli = Cli::parse();
 	match cli.command {
 		Command::Import { path } => importer::run(&path),
-		Command::Build { out } => {
-			tracing::info!("build stub: would build to {}", out.display());
-			Ok(())
-		}
+		Command::Build { out } => build::run(&out),
 		Command::Preview { port } => {
 			tracing::info!("preview stub: would serve on port {port}");
 			Ok(())
 		}
+		Command::Keygen => keygen::run(),
 	}
 }
