@@ -46,7 +46,5 @@ runs:
 
     - name: Run gist-id build
       shell: bash
-      env:
-        GIST_ID_SIGNING_KEY: ${{ env.GIST_ID_SIGNING_KEY }}
       run: |
         gist-id build --out "${{ inputs.out }}"
