@@ -19,32 +19,28 @@ runs:
   steps:
     - name: Download builder binary
       shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
       run: |
         set -euo pipefail
         version="${{ inputs.builder-version }}"
         repo="gist-id/gist-id"
 
         if [ "$version" = "latest" ]; then
-          tag=$(curl -fsSL "https://api.github.com/repos/$repo/releases/latest" | \
-                grep -oE '"tag_name":\s*"[^"]+"' | head -1 | cut -d '"' -f 4)
-          if [ -z "$tag" ]; then
-            echo "Could not resolve latest builder release."
-            exit 1
-          fi
+          tag=$(gh release view --repo "$repo" --json tagName --jq .tagName)
         else
           tag="$version"
         fi
 
         echo "Using builder release: $tag"
 
-        url="https://github.com/$repo/releases/download/$tag/gist-id-x86_64-linux.tar.gz"
-        sha_url="$url.sha256"
+        gh release download "$tag" \
+          --repo "$repo" \
+          --pattern 'gist-id-x86_64-linux.tar.gz' \
+          --pattern 'gist-id-x86_64-linux.tar.gz.sha256'
 
-        curl -fsSL "$url" -o gist-id.tar.gz
-        curl -fsSL "$sha_url" -o gist-id.tar.gz.sha256
-
-        sha256sum -c gist-id.tar.gz.sha256
-        tar -xzf gist-id.tar.gz
+        sha256sum -c gist-id-x86_64-linux.tar.gz.sha256
+        tar -xzf gist-id-x86_64-linux.tar.gz
         chmod +x gist-id
         echo "$(pwd)" >> "$GITHUB_PATH"
 
