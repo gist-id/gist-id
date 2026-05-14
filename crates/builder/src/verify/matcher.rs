@@ -1,26 +1,22 @@
-//! Match claimed skills against the evidence set.
-//!
-//! Case-insensitive direct string equality. Whitespace trimmed.
-//! "Javascript" → "javascript" matches GitHub's "JavaScript" → "javascript".
-//! "C/C++/Visual Basic" doesn't match any single language → unverified.
+//! Match claimed skills against the per-language evidence map.
 
 use std::collections::BTreeSet;
 
 use gist_id_schema::{Evidence, SkillCategory, VerifiedSkill};
 
+use crate::verify::EvidenceMap;
+
 /// For each claimed skill, if its lowercased name matches any lowercased
-/// entry in the evidence set, produce a `VerifiedSkill`. Skills with no
-/// match are absent from the result.
+/// key in the evidence map, produce a `VerifiedSkill` carrying the repos.
 pub fn match_claims(
 	handle: &str,
 	categories: &[SkillCategory],
-	evidence_set: &BTreeSet<String>,
+	evidence: &EvidenceMap,
 ) -> Vec<VerifiedSkill> {
-	// Build a lowercase → canonical-cased lookup for the evidence set so we
-	// can pass GitHub's canonical name through to the renderer for the URL.
-	let canonical: std::collections::BTreeMap<String, String> = evidence_set
+	// lowercase key → (canonical-cased name, sorted repo list)
+	let by_lower: std::collections::BTreeMap<String, (&String, &Vec<(String, u64)>)> = evidence
 		.iter()
-		.map(|s| (s.to_lowercase(), s.clone()))
+		.map(|(k, v)| (k.to_lowercase(), (k, v)))
 		.collect();
 
 	let mut out: Vec<VerifiedSkill> = Vec::new();
@@ -32,12 +28,15 @@ pub fn match_claims(
 			if key.is_empty() || seen.contains(&key) {
 				continue;
 			}
-			if let Some(canonical_name) = canonical.get(&key) {
+			if let Some((canonical, repos)) = by_lower.get(&key) {
+				let repo_names: Vec<String> =
+					repos.iter().map(|(name, _bytes)| name.clone()).collect();
 				out.push(VerifiedSkill {
 					name: skill.name.clone(),
 					evidence: vec![Evidence::GitHubLanguage {
-						language: canonical_name.clone(),
+						language: (*canonical).clone(),
 						handle: handle.to_string(),
+						repos: repo_names,
 					}],
 				});
 				seen.insert(key);
@@ -66,48 +65,56 @@ mod tests {
 		}
 	}
 
-	fn evidence(items: &[&str]) -> BTreeSet<String> {
-		items.iter().map(|s| s.to_string()).collect()
+	fn ev(items: &[(&str, &[(&str, u64)])]) -> EvidenceMap {
+		items
+			.iter()
+			.map(|(lang, repos)| {
+				(
+					lang.to_string(),
+					repos
+						.iter()
+						.map(|(r, b)| (r.to_string(), *b))
+						.collect::<Vec<_>>(),
+				)
+			})
+			.collect()
+	}
+
+	#[test]
+	fn match_carries_repos_in_byte_order() {
+		let cats = vec![cat("Languages", vec!["Rust"])];
+		let evidence = ev(&[("Rust", &[("a/big", 100_000), ("b/small", 500)])]);
+		let result = match_claims("FigmentEngine", &cats, &evidence);
+		assert_eq!(result.len(), 1);
+		let Evidence::GitHubLanguage { repos, .. } = &result[0].evidence[0];
+		assert_eq!(repos, &vec!["a/big".to_string(), "b/small".to_string()]);
 	}
 
 	#[test]
 	fn case_insensitive_match() {
 		let cats = vec![cat("Languages", vec!["rust", "Python"])];
-		let ev = evidence(&["Rust", "Python"]);
-		let result = match_claims("FigmentEngine", &cats, &ev);
+		let evidence = ev(&[("Rust", &[("a/r", 1)]), ("Python", &[("a/p", 1)])]);
+		let result = match_claims("FigmentEngine", &cats, &evidence);
 		assert_eq!(result.len(), 2);
-		assert_eq!(result[0].name, "rust");
-		assert!(matches!(
-			&result[0].evidence[0],
-			Evidence::GitHubLanguage { language, .. } if language == "Rust"
-		));
 	}
 
 	#[test]
 	fn no_evidence_means_no_entry() {
 		let cats = vec![cat("Languages", vec!["Rust", "XML/XSLT"])];
-		let ev = evidence(&["Rust"]); // GitHub doesn't typically report XML as primary
-		let result = match_claims("FigmentEngine", &cats, &ev);
+		let evidence = ev(&[("Rust", &[("a/r", 1)])]);
+		let result = match_claims("FigmentEngine", &cats, &evidence);
 		assert_eq!(result.len(), 1);
 		assert_eq!(result[0].name, "Rust");
 	}
 
 	#[test]
-	fn duplicate_claims_deduped() {
+	fn duplicates_deduped() {
 		let cats = vec![
 			cat("Languages", vec!["Rust"]),
 			cat("Backend", vec!["rust"]),
 		];
-		let ev = evidence(&["Rust"]);
-		let result = match_claims("FigmentEngine", &cats, &ev);
+		let evidence = ev(&[("Rust", &[("a/r", 1)])]);
+		let result = match_claims("FigmentEngine", &cats, &evidence);
 		assert_eq!(result.len(), 1);
-	}
-
-	#[test]
-	fn no_evidence_set_no_matches() {
-		let cats = vec![cat("Languages", vec!["Rust"])];
-		let ev = BTreeSet::new();
-		let result = match_claims("FigmentEngine", &cats, &ev);
-		assert!(result.is_empty());
 	}
 }

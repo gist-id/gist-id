@@ -1,32 +1,28 @@
 //! Skill verification via GitHub's public API.
 //!
-//! Run once per build. Gathers an *evidence set* of programming languages
-//! observed in the user's public repository activity, then matches the
-//! user's claimed skills against it.
+//! Run once per build. Gathers a per-language map of repos providing
+//! evidence, then matches the user's claimed skills against it.
 //!
 //! Algorithm:
 //!   1. List owned public repos (non-forks).
-//!   2. List recent public events; extract distinct repos pushed to.
+//!   2. List recent public events; extract distinct repos pushed to,
+//!      filtering forks via a repo-metadata lookup.
 //!   3. For every repo in (1) and (2), fetch its language byte breakdown.
-//!   4. Union all language keys across all repos → evidence set.
-//!   5. For each claimed skill, lowercase-match against the evidence set.
+//!   4. Build a map: language → [repos with bytes in that language],
+//!      ordered most-bytes-first.
+//!   5. For each claimed skill, lowercase-match against the map keys.
 //!
 //! Non-fatal: any API failure logs a warning and produces an empty result.
-//! The signed feed remains valid; the rendered profile just shows claims
-//! without verification badges.
 
 mod github;
 mod matcher;
 
 use anyhow::Result;
-use std::collections::BTreeSet;
+use std::collections::BTreeMap;
 
 use gist_id_schema::{SkillCategory, VerifiedSkill};
 
 /// Verify a user's claimed skills against GitHub evidence.
-///
-/// Returns `Vec<VerifiedSkill>` for the skills that have matching evidence.
-/// Skills without evidence are simply absent from the result.
 pub async fn verify_skills(handle: &str, skills: &[SkillCategory]) -> Result<Vec<VerifiedSkill>> {
 	let token = std::env::var("GITHUB_TOKEN").ok();
 	if token.is_none() {
@@ -37,8 +33,8 @@ pub async fn verify_skills(handle: &str, skills: &[SkillCategory]) -> Result<Vec
 
 	let client = github::Client::new(token);
 
-	let evidence_set = match build_evidence_set(&client, handle).await {
-		Ok(s) => s,
+	let evidence_map = match build_evidence_map(&client, handle).await {
+		Ok(m) => m,
 		Err(e) => {
 			tracing::warn!("skill verification failed: {e:#}");
 			return Ok(Vec::new());
@@ -46,26 +42,26 @@ pub async fn verify_skills(handle: &str, skills: &[SkillCategory]) -> Result<Vec
 	};
 
 	tracing::info!(
-		"Evidence set for {handle}: {} languages",
-		evidence_set.len()
+		"Evidence map for {handle}: {} languages",
+		evidence_map.len()
 	);
 
-	Ok(matcher::match_claims(handle, skills, &evidence_set))
+	Ok(matcher::match_claims(handle, skills, &evidence_map))
 }
 
-async fn build_evidence_set(client: &github::Client, handle: &str) -> Result<BTreeSet<String>> {
+/// Map language → list of (repo_full_name, bytes), highest-bytes-first.
+pub type EvidenceMap = BTreeMap<String, Vec<(String, u64)>>;
+
+async fn build_evidence_map(client: &github::Client, handle: &str) -> Result<EvidenceMap> {
 	let owned = client.list_owned_public_repos(handle).await?;
 	let events = client.list_push_event_repos(handle).await?;
 
-	// Union of non-fork repo full-names.
-	let mut all_repos: BTreeSet<String> = BTreeSet::new();
+	let mut all_repos: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
 	for r in &owned {
 		if !r.fork {
 			all_repos.insert(r.full_name.clone());
 		}
 	}
-	// PushEvent repos: we don't know fork-status from the event payload, but
-	// list_push_event_repos already filters via the repo lookup. Just merge.
 	for r in events {
 		all_repos.insert(r);
 	}
@@ -75,14 +71,19 @@ async fn build_evidence_set(client: &github::Client, handle: &str) -> Result<BTr
 		all_repos.len(),
 		owned.iter().filter(|r| !r.fork).count()
 	);
+	for r in &all_repos {
+		tracing::info!("  inspecting: {r}");
+	}
 
-	// Per-repo language byte breakdown. Aggregate keys.
-	let mut langs: BTreeSet<String> = BTreeSet::new();
+	// language → vec of (repo, bytes)
+	let mut map: EvidenceMap = BTreeMap::new();
 	for full_name in &all_repos {
 		match client.repo_languages(full_name).await {
-			Ok(map) => {
-				for (lang, _bytes) in map {
-					langs.insert(lang);
+			Ok(langs) => {
+				for (lang, bytes) in langs {
+					map.entry(lang)
+						.or_default()
+						.push((full_name.clone(), bytes));
 				}
 			}
 			Err(e) => {
@@ -91,5 +92,10 @@ async fn build_evidence_set(client: &github::Client, handle: &str) -> Result<BTr
 		}
 	}
 
-	Ok(langs)
+	// Sort each language's repo list by bytes descending.
+	for repos in map.values_mut() {
+		repos.sort_by(|a, b| b.1.cmp(&a.1));
+	}
+
+	Ok(map)
 }

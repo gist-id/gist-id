@@ -254,15 +254,33 @@ fn SkillCategoryEntry(
 fn SkillItem(skill: Skill, verified: BTreeMap<String, Evidence>) -> impl IntoView {
 	let key = skill.name.trim().to_lowercase();
 	let evidence_node: AnyView = match verified.get(&key) {
-		Some(Evidence::GitHubLanguage { language, handle }) => {
-			let url = format!(
-				"https://github.com/{handle}?tab=repositories&language={}",
-				language.to_lowercase()
-			);
+		Some(Evidence::GitHubLanguage {
+			language,
+			handle,
+			repos,
+		}) => {
+			// Link target: first repo if any, else fall back to the user's
+			// language-filtered repo list (works for owned repos).
+			let url = match repos.first() {
+				Some(first_repo) => format!("https://github.com/{first_repo}"),
+				None => format!(
+					"https://github.com/{handle}?tab=repositories&language={}",
+					language.to_lowercase()
+				),
+			};
+			let count_label = match repos.len() {
+				0 | 1 => "".to_string(),
+				n => format!(" ({n} repos)"),
+			};
+			let title_text = if repos.is_empty() {
+				format!("Public {language} repos by {handle}")
+			} else {
+				format!("{language} evidence in: {}", repos.join(", "))
+			};
 			view! {
 				" "
-				<a class="gist-evidence" href=url title=format!("Public {language} repos by {handle}")>
-					"✓ evidence"
+				<a class="gist-evidence" href=url title=title_text>
+					"✓ evidence" {count_label}
 				</a>
 			}
 			.into_any()

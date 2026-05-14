@@ -24,15 +24,17 @@ pub struct VerifiedSkill {
 /// A single observable signal supporting a skill claim.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Evidence {
-	/// At least one public repo (owned or pushed-to) contains code in this
-	/// language. We don't carry byte counts — verification is binary.
+	/// One or more public repos contain code in this language. The user
+	/// either owns those repos or has pushed to them recently.
 	GitHubLanguage {
 		/// The language name as GitHub reports it (e.g. "Rust", "C++").
-		/// Useful for the link-target query parameter, which is case-
-		/// insensitive on GitHub but conventionally lowercase.
 		language: String,
-		/// GitHub handle whose repos provide the evidence. Lets the
-		/// renderer link to the right "repos filtered by language" URL.
+		/// GitHub handle the verification applies to.
 		handle: String,
+		/// Full-names ("owner/repo") of repos providing evidence,
+		/// ordered most-bytes-first. The renderer links to the first
+		/// entry and may surface the count.
+		#[serde(default)]
+		repos: Vec<String>,
 	},
 }
