@@ -1,7 +1,6 @@
 name = "gist-id-edge"
 main = "build/worker/shim.mjs"
 compatibility_date = "2025-01-01"
-account_id = ""  # set via CLOUDFLARE_ACCOUNT_ID env var in CI, leave blank locally
 
 [build]
 command = "cargo install -q worker-build && worker-build --release"
