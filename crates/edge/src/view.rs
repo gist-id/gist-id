@@ -101,15 +101,17 @@ fn ProfileMeta(
 	url: Option<String>,
 	pronouns: Option<String>,
 ) -> impl IntoView {
-	let any = location.is_some() || email.is_some() || url.is_some() || pronouns.is_some();
-	view! {
-		<dl class="gist-meta" style=move || if any { "" } else { "display:none" }>
+	if location.is_none() && email.is_none() && url.is_none() && pronouns.is_none() {
+		return None;
+	}
+	Some(view! {
+		<dl class="gist-meta">
 			{location.map(|v| view! { <dt>"Location"</dt> <dd>{v}</dd> })}
 			{pronouns.map(|v| view! { <dt>"Pronouns"</dt> <dd>{v}</dd> })}
 			{email.map(|v| view! { <dt>"Email"</dt> <dd><a href=format!("mailto:{v}")>{v.clone()}</a></dd> })}
 			{url.map(|v| view! { <dt>"Web"</dt> <dd><a href=v.clone()>{v.clone()}</a></dd> })}
 		</dl>
-	}
+	})
 }
 
 // ── Work ───────────────────────────────────────────────────────────────
