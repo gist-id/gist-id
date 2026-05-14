@@ -2,6 +2,7 @@
 
 #![forbid(unsafe_code)]
 
+mod css;
 pub mod resolve;
 mod seo;
 mod view;

@@ -16,7 +16,11 @@ use std::collections::BTreeMap;
 use worker::{Response, Result};
 
 pub fn profile_page(feed: &Feed) -> Result<Response> {
-	let head_html = crate::seo::head_meta(feed);
+	let head_html = format!(
+		"{}{}",
+		crate::seo::head_meta(feed),
+		crate::css::style_block(),
+	);
 
 	let verified_lookup = build_verified_lookup(&feed.verified_skills);
 
@@ -34,6 +38,12 @@ pub fn profile_page(feed: &Feed) -> Result<Response> {
 				generated_at=feed.generated_at.clone()
 				builder_version=feed.builder_version.clone()
 			/>
+			<aside class="gist-sidebar">
+			  <div class="gist-sidebar-placeholder">
+				 <strong>"Key facts"</strong>
+				 "Verified skills, evidence summary, and quick links will appear here."
+			  </div>
+		   </aside>
 		</main>
 	}
 	.to_html();
