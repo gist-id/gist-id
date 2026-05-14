@@ -42,7 +42,7 @@ jobs:
           node-version: 24
 
       - name: Install worker-build
-        run: cargo install -q worker-build
+        run: command -v worker-build || cargo install -q worker-build
 
       - name: Deploy with wrangler
         working-directory: crates/edge
