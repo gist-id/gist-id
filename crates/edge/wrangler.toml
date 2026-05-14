@@ -3,7 +3,7 @@ main = "build/worker/shim.mjs"
 compatibility_date = "2025-01-01"
 
 [build]
-command = "cargo install -q worker-build && worker-build --release"
+command = "(command -v worker-build || cargo install -q worker-build) && worker-build --release"
 
 # Production deployment: gist.id apex.
 # Add the route via the Cloudflare dashboard after first deploy, or uncomment
