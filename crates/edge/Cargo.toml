@@ -17,3 +17,5 @@ unsafe_code = "forbid"
 
 [dependencies]
 gist-id-schema = { workspace = true }
+postcard = { workspace = true }
+worker = "0.5"
