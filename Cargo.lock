@@ -446,6 +446,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "gist-id-edge"
+version = "0.1.0"
+dependencies = [
+ "gist-id-schema",
+]
+
+[[package]]
 name = "gist-id-schema"
 version = "0.1.0"
 dependencies = [

@@ -1,0 +1,19 @@
+[package]
+name = "gist-id-edge"
+version = "0.1.0"
+description = "Cloudflare Worker that renders gist.id profiles"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[dependencies]
+gist-id-schema = { workspace = true }
