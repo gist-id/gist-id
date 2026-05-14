@@ -3,6 +3,7 @@
 #![forbid(unsafe_code)]
 
 pub mod resolve;
+mod seo;
 mod view;
 
 use gist_id_schema::Feed;

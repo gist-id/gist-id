@@ -15,8 +15,7 @@ use leptos::prelude::*;
 use worker::{Response, Result};
 
 pub fn profile_page(feed: &Feed) -> Result<Response> {
-	let title = format!("{} — gist.id", feed.profile.name);
-	let canonical = format!("https://gist.id/{}", feed.handle);
+	let head_html = crate::seo::head_meta(feed);
 
 	let body_html = view! {
 		<main class="gist-profile">
@@ -40,10 +39,7 @@ pub fn profile_page(feed: &Feed) -> Result<Response> {
 		"<!doctype html>
 <html lang=\"en\">
 <head>
-<meta charset=\"utf-8\">
-<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
-<title>{title}</title>
-<link rel=\"canonical\" href=\"{canonical}\">
+{head_html}
 </head>
 <body>
 {body_html}
