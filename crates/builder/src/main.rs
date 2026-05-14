@@ -4,6 +4,7 @@ mod build;
 mod importer;
 mod keygen;
 mod parse;
+mod verify;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -33,7 +34,8 @@ enum Command {
 	Keygen,
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
 	tracing_subscriber::fmt()
 		.with_env_filter(
 			tracing_subscriber::EnvFilter::try_from_default_env()
@@ -46,7 +48,7 @@ fn main() -> Result<()> {
 	let cli = Cli::parse();
 	match cli.command {
 		Command::Import { path } => importer::run(&path),
-		Command::Build { out } => build::run(&out),
+		Command::Build { out } => build::run(&out).await,
 		Command::Preview { port } => {
 			tracing::info!("preview stub: would serve on port {port}");
 			Ok(())

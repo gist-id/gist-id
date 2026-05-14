@@ -15,6 +15,9 @@ pub use ast::{BlockNode, InlineNode, Markdown};
 pub use parse::{parse_markdown, parse_markdown_with_resolver};
 pub mod render;
 
+pub mod verified;
+pub use verified::{Evidence, VerifiedSkill};
+
 /// Schema version. Bump major for breaking layout changes.
 pub const SCHEMA_VERSION: u16 = 2;
 
@@ -184,14 +187,6 @@ pub struct Feed {
 	pub verified_skills: Vec<VerifiedSkill>,
 
 	pub signature: Signature,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct VerifiedSkill {
-	pub name: String,
-	pub summary: String,
-	pub weight: u32,
-	pub verified_at: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

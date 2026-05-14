@@ -8,21 +8,24 @@
 //! synchronous; no reactive runtime, no Suspense, no resources.
 
 use gist_id_schema::{
-	render::render_markdown_html, Company, Education, Feed, PartialDate, Patent, PatentStatus,
-	Post, Profile, Project, Role, Skill, SkillCategory,
+	render::render_markdown_html, Company, Education, Evidence, Feed, PartialDate, Patent,
+	PatentStatus, Post, Profile, Project, Role, Skill, SkillCategory, VerifiedSkill,
 };
 use leptos::prelude::*;
+use std::collections::BTreeMap;
 use worker::{Response, Result};
 
 pub fn profile_page(feed: &Feed) -> Result<Response> {
 	let head_html = crate::seo::head_meta(feed);
+
+	let verified_lookup = build_verified_lookup(&feed.verified_skills);
 
 	let body_html = view! {
 		<main class="gist-profile">
 			<ProfileSection profile=feed.profile.clone() />
 			<WorkSection companies=feed.companies.clone() />
 			<EducationSection education=feed.education.clone() />
-			<SkillsSection skills=feed.skills.clone() />
+			<SkillsSection skills=feed.skills.clone() verified=verified_lookup.clone() />
 			<ProjectsSection projects=feed.projects.clone() />
 			<PatentsSection patents=feed.patents.clone() />
 			<PostsSection posts=feed.posts.clone() handle=feed.handle.clone() />
@@ -203,38 +206,66 @@ fn EducationEntry(entry: Education) -> impl IntoView {
 // ── Skills ─────────────────────────────────────────────────────────────
 
 #[component]
-fn SkillsSection(skills: Vec<SkillCategory>) -> impl IntoView {
+fn SkillsSection(
+	skills: Vec<SkillCategory>,
+	verified: BTreeMap<String, Evidence>,
+) -> impl IntoView {
 	if skills.is_empty() {
 		return None;
 	}
 	Some(view! {
 		<section class="gist-skills">
 			<h2>"Skills"</h2>
-			{skills.into_iter().map(|c| view! { <SkillCategoryEntry category=c /> }).collect_view()}
+			{skills.into_iter().map(|c| view! {
+				<SkillCategoryEntry category=c verified=verified.clone() />
+			}).collect_view()}
 		</section>
 	})
 }
 
 #[component]
-fn SkillCategoryEntry(category: SkillCategory) -> impl IntoView {
+fn SkillCategoryEntry(
+	category: SkillCategory,
+	verified: BTreeMap<String, Evidence>,
+) -> impl IntoView {
 	view! {
 		<section class="gist-skill-category">
 			<h3>{category.name}</h3>
 			<ul class="gist-skill-list">
-				{category.skills.into_iter().map(|s| view! { <SkillItem skill=s /> }).collect_view()}
+				{category.skills.into_iter().map(|s| view! {
+					<SkillItem skill=s verified=verified.clone() />
+				}).collect_view()}
 			</ul>
 		</section>
 	}
 }
 
 #[component]
-fn SkillItem(skill: Skill) -> impl IntoView {
+fn SkillItem(skill: Skill, verified: BTreeMap<String, Evidence>) -> impl IntoView {
+	let key = skill.name.trim().to_lowercase();
+	let evidence_node: AnyView = match verified.get(&key) {
+		Some(Evidence::GitHubLanguage { language, handle }) => {
+			let url = format!(
+				"https://github.com/{handle}?tab=repositories&language={}",
+				language.to_lowercase()
+			);
+			view! {
+				" "
+				<a class="gist-evidence" href=url title=format!("Public {language} repos by {handle}")>
+					"✓ evidence"
+				</a>
+			}
+			.into_any()
+		}
+		None => view! {}.into_any(),
+	};
 	view! {
 		<li class="gist-skill">
 			<span class="gist-skill-name">{skill.name}</span>
 			{skill.since.map(|y| view! {
 				" " <span class="gist-skill-since">"(since " {y} ")"</span>
 			})}
+			{evidence_node}
 		</li>
 	}
 }
@@ -423,4 +454,14 @@ fn format_status(s: PatentStatus) -> &'static str {
 		PatentStatus::Granted => "Granted",
 		PatentStatus::Lapsed => "Lapsed",
 	}
+}
+
+fn build_verified_lookup(verified: &[VerifiedSkill]) -> BTreeMap<String, Evidence> {
+	let mut out = BTreeMap::new();
+	for v in verified {
+		if let Some(ev) = v.evidence.first() {
+			out.insert(v.name.trim().to_lowercase(), ev.clone());
+		}
+	}
+	out
 }
