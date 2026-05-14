@@ -13,6 +13,7 @@ pub mod ast;
 pub mod parse;
 pub use ast::{BlockNode, InlineNode, Markdown};
 pub use parse::{parse_markdown, parse_markdown_with_resolver};
+pub mod render;
 
 /// Schema version. Bump major for breaking layout changes.
 pub const SCHEMA_VERSION: u16 = 2;
