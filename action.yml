@@ -46,5 +46,7 @@ runs:
 
     - name: Run gist-id build
       shell: bash
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
       run: |
         gist-id build --out "${{ inputs.out }}"
