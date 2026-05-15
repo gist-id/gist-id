@@ -16,7 +16,7 @@ pub use parse::{parse_markdown, parse_markdown_with_resolver};
 pub mod render;
 
 pub mod verified;
-pub use verified::{Evidence, VerifiedSkill};
+pub use verified::{Evidence, SuggestedSkill, VerifiedSkill};
 
 /// Schema version. Bump major for breaking layout changes.
 pub const SCHEMA_VERSION: u16 = 2;
@@ -183,8 +183,10 @@ pub struct Feed {
 	pub patents: Vec<Patent>,
 	pub posts: Vec<Post>,
 
-	/// Day-4 verification output. Empty for MVP days 1–3.
 	pub verified_skills: Vec<VerifiedSkill>,
+
+	#[serde(default)]
+	pub suggested_skills: Vec<SuggestedSkill>,
 
 	pub signature: Signature,
 }
@@ -256,6 +258,7 @@ mod tests {
 			patents: vec![],
 			posts: vec![],
 			verified_skills: vec![],
+			suggested_skills: vec![],
 			signature: Signature::empty(),
 		};
 

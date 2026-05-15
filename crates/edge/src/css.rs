@@ -275,25 +275,81 @@ section > h2 {
 
 /* Sidebar placeholder. Will hold "key facts" later (counts, verified
    ratio, links to canonical evidence). Today it shows intent. */
-.gist-sidebar-placeholder {
-	position: sticky;
-	top: 3rem;
-	padding: 1rem;
-	border: 1px dashed var(--rule);
-	font-size: 0.85rem;
-	color: var(--muted);
-	font-style: italic;
-	line-height: 1.4;
+
+.gist-sidebar-facts {
+    position: sticky;
+    top: 3rem;
+    padding: 1rem;
+    border: 1px solid var(--rule);
+    font-size: 0.85rem;
+    line-height: 1.4;
 }
-.gist-sidebar-placeholder strong {
-	display: block;
-	font-variant: small-caps;
-	font-style: normal;
-	letter-spacing: 0.08em;
-	color: var(--muted);
-	margin-bottom: 0.4rem;
-	font-size: 0.8rem;
-	font-weight: 600;
+.gist-sidebar-facts > strong {
+    display: block;
+    font-variant: small-caps;
+    font-style: normal;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+.gist-fact { margin: 0 0 1rem; }
+.gist-fact:last-child { margin-bottom: 0; }
+.gist-fact-heading {
+    font-variant: small-caps;
+    letter-spacing: 0.06em;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--muted);
+    margin: 0 0 0.25rem;
+}
+.gist-fact p { margin: 0; }
+.gist-fact-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.gist-fact-list li { margin: 0 0 0.15rem; }
+.gist-sidebar-link {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 500;
+}
+.gist-sidebar-link:hover { text-decoration: underline; }
+.gist-suggested {
+    color: var(--muted);
+    font-style: italic;
+    font-weight: 400;
+}
+.gist-fact-nudge {
+    margin: 0 0 0.4rem !important;
+    color: var(--muted);
+    font-style: italic;
+}
+
+/* nudge */
+.gist-skills-nudge {
+    margin: 0 0 1rem;
+    color: var(--muted);
+    font-style: italic;
+}
+.gist-skills-nudge code {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-style: normal;
+    font-size: 0.9em;
+}
+.gist-evidence-suggested {
+    color: var(--muted);
+    font-style: italic;
+    text-decoration: underline;
+    text-decoration-color: var(--rule);
+    text-underline-offset: 0.15em;
+    margin-left: 0.35rem;
+}
+.gist-evidence-suggested:hover {
+    color: var(--accent);
+    text-decoration-color: var(--accent);
 }
 
 /* Mobile: collapse sidebar, soften the frame strips. */
@@ -305,6 +361,6 @@ section > h2 {
 		gap: 1rem;
 	}
 	.gist-sidebar { grid-column: 1; grid-row: auto; }
-	.gist-sidebar-placeholder { position: static; }
+	.gist-sidebar-facts { position: static; }
 }
 "#;

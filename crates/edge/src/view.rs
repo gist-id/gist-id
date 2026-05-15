@@ -9,7 +9,8 @@
 
 use gist_id_schema::{
 	render::render_markdown_html, Company, Education, Evidence, Feed, PartialDate, Patent,
-	PatentStatus, Post, Profile, Project, Role, Skill, SkillCategory, VerifiedSkill,
+	PatentStatus, Post, Profile, Project, Role, Skill, SkillCategory, SuggestedSkill,
+	VerifiedSkill,
 };
 use leptos::prelude::*;
 use std::collections::BTreeMap;
@@ -25,26 +26,29 @@ pub fn profile_page(feed: &Feed) -> Result<Response> {
 	let verified_lookup = build_verified_lookup(&feed.verified_skills);
 
 	let body_html = view! {
-		<main class="gist-profile">
-			<ProfileSection profile=feed.profile.clone() />
-			<WorkSection companies=feed.companies.clone() />
-			<EducationSection education=feed.education.clone() />
-			<SkillsSection skills=feed.skills.clone() verified=verified_lookup.clone() />
-			<ProjectsSection projects=feed.projects.clone() />
-			<PatentsSection patents=feed.patents.clone() />
-			<PostsSection posts=feed.posts.clone() handle=feed.handle.clone() />
-			<Footer
-				schema_version=feed.schema_version
-				generated_at=feed.generated_at.clone()
-				builder_version=feed.builder_version.clone()
-			/>
-			<aside class="gist-sidebar">
-			  <div class="gist-sidebar-placeholder">
-				 <strong>"Key facts"</strong>
-				 "Verified skills, evidence summary, and quick links will appear here."
-			  </div>
-		   </aside>
-		</main>
+	   <main class="gist-profile">
+		   <ProfileSection profile=feed.profile.clone() />
+		   <WorkSection companies=feed.companies.clone() />
+		   <EducationSection education=feed.education.clone() />
+		   <SkillsSection
+			   skills=feed.skills.clone()
+			   verified=verified_lookup.clone()
+			   suggested=feed.suggested_skills.clone()
+		   />
+		   <ProjectsSection projects=feed.projects.clone() />
+		   <PatentsSection patents=feed.patents.clone() />
+		   <PostsSection posts=feed.posts.clone() handle=feed.handle.clone() />
+		   <Footer
+			   schema_version=feed.schema_version
+			   generated_at=feed.generated_at.clone()
+			   builder_version=feed.builder_version.clone()
+		   />
+		   <SidebarFacts
+			   location=feed.profile.location.clone()
+			   verified=verified_lookup.clone()
+			   suggested=feed.suggested_skills.clone()
+		   />
+	   </main>
 	}
 	.to_html();
 
@@ -219,18 +223,68 @@ fn EducationEntry(entry: Education) -> impl IntoView {
 fn SkillsSection(
 	skills: Vec<SkillCategory>,
 	verified: BTreeMap<String, Evidence>,
+	suggested: Vec<SuggestedSkill>,
 ) -> impl IntoView {
 	if skills.is_empty() {
-		return None;
+		if suggested.is_empty() {
+			return None;
+		}
+		return Some(
+			view! {
+				<section class="gist-skills">
+					<h2>"Skills"</h2>
+					<p class="gist-skills-nudge">
+						"We found evidence of these in your repositories. "
+						"Add them to your "
+						<code>"skills.md"</code>
+						" to claim them."
+					</p>
+					<ul class="gist-skill-list">
+						{suggested.into_iter()
+							.map(|s| view! { <SuggestedSkillItem skill=s /> })
+							.collect_view()}
+					</ul>
+				</section>
+			}
+			.into_any(),
+		);
 	}
-	Some(view! {
-		<section class="gist-skills">
-			<h2>"Skills"</h2>
-			{skills.into_iter().map(|c| view! {
-				<SkillCategoryEntry category=c verified=verified.clone() />
-			}).collect_view()}
-		</section>
-	})
+	Some(
+		view! {
+			<section class="gist-skills">
+				<h2>"Skills"</h2>
+				{skills.into_iter().map(|c| view! {
+					<SkillCategoryEntry category=c verified=verified.clone() />
+				}).collect_view()}
+			</section>
+		}
+		.into_any(),
+	)
+}
+
+#[component]
+fn SuggestedSkillItem(skill: SuggestedSkill) -> impl IntoView {
+	let url = skill
+		.repos
+		.first()
+		.map(|r| format!("https://github.com/{r}"));
+	let language = skill.language.clone();
+	let evidence_node: AnyView = match url {
+		Some(u) => view! {
+			" "
+			<a class="gist-evidence-suggested" href=u>
+				"👁 found"
+			</a>
+		}
+		.into_any(),
+		None => view! {}.into_any(),
+	};
+	view! {
+		<li class="gist-skill gist-suggested-row">
+			<span class="gist-skill-name">{language}</span>
+			{evidence_node}
+		</li>
+	}
 }
 
 #[component]
@@ -492,4 +546,104 @@ fn build_verified_lookup(verified: &[VerifiedSkill]) -> BTreeMap<String, Evidenc
 		}
 	}
 	out
+}
+
+#[component]
+fn SidebarFacts(
+	location: Option<String>,
+	verified: BTreeMap<String, Evidence>,
+	suggested: Vec<SuggestedSkill>,
+) -> impl IntoView {
+	let has_location = location.is_some();
+	let has_verified = !verified.is_empty();
+	let has_suggested = !suggested.is_empty();
+
+	// Sidebar always shows at least Location (per user decision).
+	// Verified takes precedence; if zero verified but we have
+	// suggestions, show those as a nudge.
+
+	view! {
+		<aside class="gist-sidebar">
+			<div class="gist-sidebar-facts">
+				<strong>"Key facts"</strong>
+				{has_location.then(|| view! {
+					<section class="gist-fact">
+						<h4 class="gist-fact-heading">"Location"</h4>
+						<p>{location}</p>
+					</section>
+				})}
+				{has_verified.then(|| {
+					let count = verified.len();
+					view! {
+						<section class="gist-fact">
+							<h4 class="gist-fact-heading">
+								"Verified skills (" {count} ")"
+							</h4>
+							<ul class="gist-fact-list">
+								{verified.iter()
+									.map(|(_, ev)| view! {
+										<SidebarVerifiedItem evidence=ev.clone() />
+									})
+									.collect_view()}
+							</ul>
+						</section>
+					}
+				})}
+				{(!has_verified && has_suggested).then(|| view! {
+					<section class="gist-fact">
+						<h4 class="gist-fact-heading">"Skills we found"</h4>
+						<p class="gist-fact-nudge">
+							"You haven't claimed any skills yet. We found evidence of:"
+						</p>
+						<ul class="gist-fact-list">
+							{suggested.iter()
+								.map(|s| view! {
+									<SidebarSuggestedItem skill=s.clone() />
+								})
+								.collect_view()}
+						</ul>
+					</section>
+				})}
+			</div>
+		</aside>
+	}
+}
+
+#[component]
+fn SidebarVerifiedItem(evidence: Evidence) -> impl IntoView {
+	let Evidence::GitHubLanguage {
+		language,
+		handle,
+		repos,
+	} = evidence;
+	let url = match repos.first() {
+		Some(r) => format!("https://github.com/{r}"),
+		None => format!(
+			"https://github.com/{handle}?tab=repositories&language={}",
+			language.to_lowercase()
+		),
+	};
+	view! {
+		<li>
+			<a class="gist-sidebar-link" href=url>
+				{language} " ✓"
+			</a>
+		</li>
+	}
+}
+
+#[component]
+fn SidebarSuggestedItem(skill: SuggestedSkill) -> impl IntoView {
+	let url = skill
+		.repos
+		.first()
+		.map(|r| format!("https://github.com/{r}"));
+	let language = skill.language.clone();
+	match url {
+		Some(u) => view! {
+			<li><a class="gist-sidebar-link gist-suggested" href=u>{language}</a></li>
+		}
+		.into_any(),
+		None => view! { <li class="gist-suggested">{language}</li> }.into_any(),
+	}
 }

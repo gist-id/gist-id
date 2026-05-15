@@ -27,7 +27,9 @@ pub async fn run(out_dir: &Path) -> Result<()> {
 	let patents = read_section("resume/patents.md", parse::parse_patents)?.unwrap_or_default();
 	let posts = read_posts()?;
 
-	let verified_skills = crate::verify::verify_skills(&handle, &skills).await?;
+	let verify_out = crate::verify::verify_skills(&handle, &skills).await?;
+	let verified_skills = verify_out.verified;
+	let suggested_skills = verify_out.suggested;
 
 	let generated_at = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
 
@@ -44,6 +46,7 @@ pub async fn run(out_dir: &Path) -> Result<()> {
 		patents,
 		posts,
 		verified_skills,
+		suggested_skills,
 		signature: Signature::empty(),
 	};
 
