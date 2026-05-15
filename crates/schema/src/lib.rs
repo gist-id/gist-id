@@ -66,13 +66,14 @@ pub struct Profile {
 	pub url: Option<String>,
 	pub pronouns: Option<String>,
 	pub avatar: Option<String>,
-	pub external_identities: Vec<ExternalIdentity>,
+	#[serde(default)]
+	pub links: Vec<Link>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ExternalIdentity {
-	pub network: String,
-	pub handle: String,
+pub struct Link {
+	pub label: String,
+	pub url: String,
 }
 
 // ---- Resume -----------------------------------------------------------------
@@ -249,7 +250,7 @@ mod tests {
 				url: None,
 				pronouns: None,
 				avatar: None,
-				external_identities: vec![],
+				links: vec![],
 			},
 			companies: vec![],
 			education: vec![],

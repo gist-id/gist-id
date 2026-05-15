@@ -1,9 +1,7 @@
 //! Parse `profile.md` → `Profile`.
 
 use anyhow::{anyhow, Result};
-use gist_id_schema::{
-	parse_markdown, BlockNode, ExternalIdentity, Markdown, Profile,
-};
+use gist_id_schema::{parse_markdown, BlockNode, Link, Markdown, Profile};
 
 use super::meta::{extract_metadata, flatten_inline};
 
@@ -44,9 +42,10 @@ pub fn parse_profile(source: &str) -> Result<Profile> {
 		url: None,
 		pronouns: None,
 		avatar: None,
-		external_identities: Vec::new(),
+		links: Vec::new(),
 	};
 
+	// profile meta-line matcher
 	for (key, value) in &section.meta {
 		match key.as_str() {
 			"Email" => profile.email = Some(value.clone()),
@@ -54,13 +53,17 @@ pub fn parse_profile(source: &str) -> Result<Profile> {
 			"URL" => profile.url = Some(value.clone()),
 			"Pronouns" => profile.pronouns = Some(value.clone()),
 			"Avatar" => profile.avatar = Some(value.clone()),
-			"LinkedIn" | "Mastodon" | "Bluesky" | "Twitter" => {
-				profile.external_identities.push(ExternalIdentity {
-					network: key.to_ascii_lowercase(),
-					handle: value.clone(),
-				});
+			_ => {
+				// Any other key with a URL value becomes a profile link.
+				let v = value.trim();
+				if v.starts_with("http://") || v.starts_with("https://") {
+					profile.links.push(Link {
+						label: key.clone(),
+						url: v.to_string(),
+					});
+				}
+				// else: ignore (unknown non-URL key)
 			}
-			_ => {} // unknown keys ignored for MVP
 		}
 	}
 

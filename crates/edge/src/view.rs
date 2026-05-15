@@ -8,7 +8,7 @@
 //! synchronous; no reactive runtime, no Suspense, no resources.
 
 use gist_id_schema::{
-	render::render_markdown_html, Company, Education, Evidence, Feed, PartialDate, Patent,
+	render::render_markdown_html, Company, Education, Evidence, Feed, Link, PartialDate, Patent,
 	PatentStatus, Post, Profile, Project, Role, Skill, SkillCategory, SuggestedSkill,
 	VerifiedSkill,
 };
@@ -44,10 +44,12 @@ pub fn profile_page(feed: &Feed) -> Result<Response> {
 			   builder_version=feed.builder_version.clone()
 		   />
 		   <SidebarFacts
-			   location=feed.profile.location.clone()
-			   verified=verified_lookup.clone()
-			   suggested=feed.suggested_skills.clone()
-		   />
+				location=feed.profile.location.clone()
+				links=feed.profile.links.clone()
+				handle=feed.handle.clone()
+				verified=verified_lookup.clone()
+				suggested=feed.suggested_skills.clone()
+			/>
 	   </main>
 	}
 	.to_html();
@@ -551,16 +553,15 @@ fn build_verified_lookup(verified: &[VerifiedSkill]) -> BTreeMap<String, Evidenc
 #[component]
 fn SidebarFacts(
 	location: Option<String>,
+	links: Vec<Link>,
+	handle: String,
 	verified: BTreeMap<String, Evidence>,
 	suggested: Vec<SuggestedSkill>,
 ) -> impl IntoView {
 	let has_location = location.is_some();
 	let has_verified = !verified.is_empty();
 	let has_suggested = !suggested.is_empty();
-
-	// Sidebar always shows at least Location (per user decision).
-	// Verified takes precedence; if zero verified but we have
-	// suggestions, show those as a nudge.
+	let profile_links = build_profile_links(&links, &handle);
 
 	view! {
 		<aside class="gist-sidebar">
@@ -572,6 +573,14 @@ fn SidebarFacts(
 						<p>{location}</p>
 					</section>
 				})}
+				<section class="gist-fact">
+					<h4 class="gist-fact-heading">"Profiles"</h4>
+					<ul class="gist-fact-list">
+						{profile_links.into_iter().map(|(link, verified)| view! {
+							<SidebarProfileLink link=link verified=verified />
+						}).collect_view()}
+					</ul>
+				</section>
 				{has_verified.then(|| {
 					let count = verified.len();
 					view! {
@@ -645,5 +654,64 @@ fn SidebarSuggestedItem(skill: SuggestedSkill) -> impl IntoView {
 		}
 		.into_any(),
 		None => view! { <li class="gist-suggested">{language}</li> }.into_any(),
+	}
+}
+
+/// Build the renderable profile-links list, ensuring GitHub is present.
+/// Each returned tuple is (link, is_verified). GitHub is verified only
+/// when the URL's handle matches the resolving handle case-insensitively.
+fn build_profile_links(declared: &[Link], handle: &str) -> Vec<(Link, bool)> {
+	let mut out: Vec<(Link, bool)> = Vec::with_capacity(declared.len() + 1);
+	let mut has_github = false;
+	for link in declared {
+		let is_github = link.label.eq_ignore_ascii_case("github");
+		if is_github {
+			has_github = true;
+			let verified = github_handle_in_url(&link.url)
+				.map(|h| h.eq_ignore_ascii_case(handle))
+				.unwrap_or(false);
+			out.push((link.clone(), verified));
+		} else {
+			out.push((link.clone(), false));
+		}
+	}
+	if !has_github {
+		out.insert(
+			0,
+			(
+				Link {
+					label: "GitHub".into(),
+					url: format!("https://github.com/{handle}"),
+				},
+				true,
+			),
+		);
+	}
+	out
+}
+
+/// Extract the GitHub handle (first path segment) from a URL.
+fn github_handle_in_url(url: &str) -> Option<&str> {
+	let s = url
+		.trim_start_matches("https://")
+		.trim_start_matches("http://");
+	let after_host = s.strip_prefix("github.com/")?;
+	let handle = after_host.split('/').next()?;
+	if handle.is_empty() {
+		None
+	} else {
+		Some(handle)
+	}
+}
+
+#[component]
+fn SidebarProfileLink(link: Link, verified: bool) -> impl IntoView {
+	view! {
+		<li>
+			<a class="gist-sidebar-link" href=link.url>
+				{link.label}
+				{verified.then(|| view! { " ✓" })}
+			</a>
+		</li>
 	}
 }
