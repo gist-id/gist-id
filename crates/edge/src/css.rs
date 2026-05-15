@@ -28,13 +28,13 @@ html, body { margin: 0; padding: 0; }
 
 body {
 	font-family: Charter, "Iowan Old Style", Georgia, "Times New Roman", serif;
-	font-size: 1rem;
+	font-size: 1.125rem;
 	line-height: 1.65;
 	color: var(--ink);
 	background: var(--paper);
 	/* Black frame strips on either side of the page. */
-	border-left: 0.5rem solid var(--frame);
-	border-right: 0.5rem solid var(--frame);
+	border-left: 1rem solid var(--frame);
+	border-right: 1rem solid var(--frame);
 	min-height: 100vh;
 }
 
@@ -354,7 +354,7 @@ section > h2 {
 
 /* Mobile: collapse sidebar, soften the frame strips. */
 @media (max-width: 55rem) {
-	body { border-left-width: 0.25rem; border-right-width: 0.25rem; }
+	body { border-left-width: 0.5rem; border-right-width: 0.5rem; }
 	.gist-profile {
 		grid-template-columns: 1fr;
 		padding: 2rem 1.25rem;
